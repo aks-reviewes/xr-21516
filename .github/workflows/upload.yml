@@ -1,0 +1,11 @@
+name: upload-on-pr
+on: pull_request
+jobs:
+  up:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "ATTACKER_CONTROLLED_PAYLOAD_PR${{ github.event.pull_request.number }}" > payload.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr-payload
+          path: payload.txt
