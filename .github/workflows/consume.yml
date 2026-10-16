@@ -1,0 +1,25 @@
+name: consume-artifact
+on:
+  workflow_run:
+    workflows: ["upload-on-pr"]
+    types: [completed]
+permissions:
+  contents: read
+  issues: write
+jobs:
+  consume:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pr-payload
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: inspect
+        run: |
+          echo "trigger_event=${{ github.event.workflow_run.event }} head_repo=${{ github.event.workflow_run.head_repository.full_name }}"
+          echo "ARTIFACT:"; cat payload.txt 2>/dev/null || echo "NO-ARTIFACT"
+          curl -s -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/aks-reviewes/xr-21516 | python3 -c "import sys,json;print(\"perms:\",json.load(sys.stdin).get(\"permissions\"))"
+          curl -s -o /dev/null -w "WRITE create-issue (201=privileged): %{http_code}\n" -X POST -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/aks-reviewes/xr-21516/issues -d "{\"title\":\"wfrun-artifact-poison-test\"}"
